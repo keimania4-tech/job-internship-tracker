@@ -3,77 +3,71 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 /**
- * LOGIC: calculateTimeLeft
- * Compares the stored application date plus 7 days against the current local time.
+ * LOGIC: calculateTimeStats
+ * Handles both the "Countdown" (Future) and "Stopwatch" (Past) logic.
  */
-const calculateTimeLeft = (dateApplied: string) => {
-  const targetDate = new Date(dateApplied);
-  targetDate.setDate(targetDate.getDate() + 7); 
-  const difference = +targetDate - +new Date();
-  
-  if (difference <= 0) return null;
+const calculateTimeStats = (dateApplied) => {
+  const start = new Date(dateApplied);
+  const now = new Date();
+  const difference = +now - +start;
+  const isFuture = difference < 0;
+  const absDiff = Math.abs(difference);
 
-  return {
-    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-    minutes: Math.floor((difference / 1000 / 60) % 60),
-    seconds: Math.floor((difference / 1000) % 60),
+  const stats = {
+    isFuture,
+    days: Math.floor(absDiff / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((absDiff / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((absDiff / 1000 / 60) % 60),
+    seconds: Math.floor((absDiff / 1000) % 60),
   };
+
+  return stats;
 };
 
-export default function Home() {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+function App() {
+  const fileInputRef = useRef(null);
 
-  // 1. STATE: Load jobs from LocalStorage with validation
-  const [jobs, setJobs] = useState<any[]>([]);
-
-  // Initialize data only on client-side
-  useEffect(() => {
+  const [jobs, setJobs] = useState(() => {
     try {
       const saved = localStorage.getItem('myJobApplications');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) setJobs(parsed);
-      }
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.error("Storage corrupted:", error);
+      return [];
     }
-  }, []);
-
-  // 2. STATE: Form tracking
-  const [formData, setFormData] = useState({
-    company: '', role: '', location: '', status: 'Applied', notes: '',
-    dateApplied: new Date().toISOString().split('T')[0]
   });
 
-  // 3. STATE: The Timer Heartbeat
+  // Defaulting to "Now" in the correct format for datetime-local input
+  const getNowString = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
+
+  const [formData, setFormData] = useState({
+    company: '', role: '', location: '', status: 'Applied', notes: '',
+    dateApplied: getNowString()
+  });
+
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // 4. EFFECT: Auto-save to LocalStorage
   useEffect(() => {
-    if (jobs.length > 0) {
-        localStorage.setItem('myJobApplications', JSON.stringify(jobs));
-    }
+    localStorage.setItem('myJobApplications', JSON.stringify(jobs));
   }, [jobs]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-
-    const [year, month, day] = formData.dateApplied.split('-').map(Number);
-    const selectedDate = new Date(year, month - 1, day); 
-
-    if (selectedDate > new Date()) {
-      alert("Check your date! You can't apply in the future.");
-      return;
-    }
+    // With datetime-local, we can parse directly as local time
+    const selectedDate = new Date(formData.dateApplied);
 
     const newJob = {
       ...formData,
@@ -82,14 +76,14 @@ export default function Home() {
     };
     
     setJobs([newJob, ...jobs]);
-    setFormData({ ...formData, company: '', role: '', notes: '' });
+    setFormData({ ...formData, company: '', role: '', notes: '', dateApplied: getNowString() });
   };
 
-  const updateStatus = (id: string, newStatus: string) => {
+  const updateStatus = (id, newStatus) => {
     setJobs(jobs.map(job => job.id === id ? { ...job, status: newStatus } : job));
   };
 
-  const deleteJob = (id: string) => {
+  const deleteJob = (id) => {
     if (window.confirm("Remove this entry?")) {
       setJobs(jobs.filter(job => job.id !== id));
     }
@@ -105,18 +99,16 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
-  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const importData = (event) => {
+    const file = event.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const parsed = JSON.parse(e.target?.result as string);
+        const parsed = JSON.parse(e.target.result);
         if (Array.isArray(parsed)) {
           setJobs(parsed);
-          localStorage.setItem('myJobApplications', JSON.stringify(parsed));
-          alert("Data Imported!");
+          alert("Import successful!");
         }
       } catch (err) {
         alert("Invalid file.");
@@ -128,8 +120,11 @@ export default function Home() {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '700px', margin: '0 auto', fontFamily: 'sans-serif', color: '#333' }}>
-      <h1 style={{ textAlign: 'center' }}>💼 Job Tracker</h1>
+    <div style={{ padding: '20px', maxWidth: '750px', margin: '0 auto', fontFamily: 'sans-serif', color: '#333' }}>
+      <header style={{ textAlign: 'center', marginBottom: '30px' }}>
+        <h1>💼 Precision Job Tracker</h1>
+        <p>Tracking time since {new Date().getFullYear()}</p>
+      </header>
       
       <form onSubmit={handleSubmit} style={styles.form}>
         <div style={styles.row}>
@@ -138,54 +133,79 @@ export default function Home() {
         </div>
         <div style={styles.row}>
           <input name="location" placeholder="Location" style={styles.input} value={formData.location} onChange={handleChange} />
-          <input type="date" name="dateApplied" style={styles.input} value={formData.dateApplied} onChange={handleChange} required />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <label style={{ fontSize: '0.7em', color: '#777' }}>Date & Time:</label>
+            <input 
+              type="datetime-local" 
+              name="dateApplied" 
+              style={styles.input} 
+              value={formData.dateApplied} 
+              onChange={handleChange} 
+              required 
+            />
+          </div>
         </div>
-        <textarea name="notes" placeholder="Additional Notes" style={{ ...styles.input, height: '60px' }} value={formData.notes} onChange={handleChange} />
         <button type="submit" style={styles.submitBtn}>Log Application</button>
       </form>
 
       <div>
         {jobs.map(job => {
-          const timeLeft = calculateTimeLeft(job.dateApplied);
+          const t = calculateTimeStats(job.dateApplied);
           return (
             <div key={job.id} style={styles.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <div>
                   <h3 style={{ margin: 0 }}>{job.role}</h3>
-                  <p style={{ margin: '4px 0', color: '#555' }}>{job.company} • {job.location}</p>
+                  <p style={{ margin: '4px 0', color: '#666' }}>{job.company}</p>
                 </div>
-                <select value={job.status} onChange={(e) => updateStatus(job.id, e.target.value)} style={{ padding: '5px' }}>
+                <select value={job.status} onChange={(e) => updateStatus(job.id, e.target.value)}>
                   <option value="Applied">Applied</option>
                   <option value="Interviewing">Interviewing</option>
                   <option value="Offer">Offer</option>
                   <option value="Rejected">Rejected</option>
                 </select>
               </div>
-              <div style={{ ...styles.timer, backgroundColor: timeLeft ? '#f0f7ff' : '#fff5f5' }}>
-                <strong>Countdown:</strong> {timeLeft ? `${timeLeft.days}d ${timeLeft.hours}h ${timeLeft.minutes}m ${timeLeft.seconds}s` : "Follow up!"}
+
+              <div style={{ 
+                ...styles.timer, 
+                backgroundColor: t.isFuture ? '#f0fff4' : '#f4f4f9',
+                border: t.isFuture ? '1px solid #c6f6d5' : '1px solid #ddd'
+              }}>
+                <span style={{ fontSize: '0.75em', color: '#888', fontWeight: 'bold' }}>
+                  {t.isFuture ? "COUNTDOWN TO START:" : "ACTIVE TIME SINCE APPLIED:"}
+                </span>
+                <div style={{ fontSize: '1.3em', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  {/* Logic: If future, only show days. If past, show the full stopwatch. */}
+                  {t.isFuture 
+                    ? `${t.days} Days Remaining` 
+                    : `${t.days}d ${t.hours}h ${t.minutes}m ${t.seconds}s`
+                  }
+                </div>
               </div>
-              <button onClick={() => deleteJob(job.id)} style={styles.deleteLink}>Delete</button>
+              <button onClick={() => deleteJob(job.id)} style={styles.deleteBtn}>Delete</button>
             </div>
           );
         })}
       </div>
 
       <footer style={styles.footer}>
-        <button onClick={exportData} style={styles.backupBtn}>Export JSON</button>
+        <button onClick={exportData} style={styles.backupBtn}>Export Backup</button>
         <input type="file" accept=".json" onChange={importData} ref={fileInputRef} />
       </footer>
     </div>
   );
 }
 
-const styles: { [key: string]: React.CSSProperties } = {
-  form: { display: 'flex', flexDirection: 'column', gap: '10px', background: '#f8f9fa', padding: '20px', borderRadius: '8px', marginBottom: '30px' },
+const styles = {
+  form: { display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' },
   row: { display: 'flex', gap: '10px' },
-  input: { padding: '10px', borderRadius: '4px', border: '1px solid #ccc', flex: 1 },
-  submitBtn: { padding: '12px', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' },
-  card: { border: '1px solid #ddd', padding: '15px', borderRadius: '8px', marginBottom: '10px', backgroundColor: 'white' },
-  timer: { marginTop: '10px', padding: '8px', borderRadius: '4px' },
-  deleteLink: { color: '#dc3545', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.8em', marginTop: '10px' },
-  footer: { marginTop: '40px', borderTop: '1px solid #eee', paddingTop: '20px', display: 'flex', gap: '20px', alignItems: 'center' },
+  input: { padding: '10px', borderRadius: '6px', border: '1px solid #ccc', flex: 1 },
+  submitBtn: { padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  card: { border: '1px solid #eee', padding: '15px', borderRadius: '10px', marginBottom: '15px', background: '#fff' },
+  timer: { marginTop: '12px', padding: '10px', borderRadius: '8px', textAlign: 'center' },
+  deleteBtn: { background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '0.8em', marginTop: '10px', padding: 0, textDecoration: 'underline' },
+  footer: { marginTop: '40px', borderTop: '1px solid #eee', paddingTop: '20px', display: 'flex', gap: '20px' },
   backupBtn: { padding: '8px', cursor: 'pointer' }
 };
+
+export default App;
