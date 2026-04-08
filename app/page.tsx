@@ -83,7 +83,7 @@ function App() {
     setJobs(jobs.map(job => job.id === id ? { ...job, status: newStatus } : job));
   };
 
-  const deleteJob = (id) => {
+ const deleteJob = (id: string) => {
     if (window.confirm("Remove this entry?")) {
       setJobs(jobs.filter(job => job.id !== id));
     }
