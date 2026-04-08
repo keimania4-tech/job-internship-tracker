@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
  * LOGIC: calculateTimeStats
  * Handles both the "Countdown" (Future) and "Stopwatch" (Past) logic.
  */
-const calculateTimeStats = (dateApplied) => {
+const calculateTimeStats = (dateApplied: string) => {
   const start = new Date(dateApplied);
   const now = new Date();
   const difference = +now - +start;
