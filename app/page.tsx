@@ -79,7 +79,7 @@ function App() {
     setFormData({ ...formData, company: '', role: '', notes: '', dateApplied: getNowString() });
   };
 
-  const updateStatus = (id, newStatus) => {
+  const updateStatus = (id: string, newStatus: string) => {
     setJobs(jobs.map(job => job.id === id ? { ...job, status: newStatus } : job));
   };
 
