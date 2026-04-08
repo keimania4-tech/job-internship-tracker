@@ -60,15 +60,15 @@ function App() {
     localStorage.setItem('myJobApplications', JSON.stringify(jobs));
   }, [jobs]);
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    // With datetime-local, we can parse directly as local time
-    const selectedDate = new Date(formData.dateApplied);
-
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  // With datetime-local, we can parse directly as local time
+  const selectedDate = new Date(formData.dateApplied);
+    
     const newJob = {
       ...formData,
       id: crypto.randomUUID(),
