@@ -1,20 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-// STYLES - Moved up here so they are ready when the component renders
-const styles = {
-  form: { display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' },
-  row: { display: 'flex', gap: '10px' },
-  input: { padding: '10px', borderRadius: '6px', border: '1px solid #ccc', flex: 1 },
-  submitBtn: { padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
-  card: { border: '1px solid #eee', padding: '15px', borderRadius: '10px', marginBottom: '15px', background: '#fff' },
-  timer: { marginTop: '12px', padding: '10px', borderRadius: '8px', textAlign: 'center' },
-  deleteBtn: { background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '0.8em', marginTop: '10px', padding: 0, textDecoration: 'underline' },
-  footer: { marginTop: '40px', borderTop: '1px solid #eee', paddingTop: '20px', display: 'flex', gap: '20px' },
-  backupBtn: { padding: '8px', cursor: 'pointer' }
-};
-
 /**
  * LOGIC: calculateTimeStats
+ * Handles both the "Countdown" (Future) and "Stopwatch" (Past) logic.
  */
 const calculateTimeStats = (dateApplied) => {
   const start = new Date(dateApplied);
@@ -23,22 +11,21 @@ const calculateTimeStats = (dateApplied) => {
   const isFuture = difference < 0;
   const absDiff = Math.abs(difference);
 
-  return {
+  const stats = {
     isFuture,
     days: Math.floor(absDiff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((absDiff / (1000 * 60 * 60)) % 24),
     minutes: Math.floor((absDiff / 1000 / 60) % 60),
     seconds: Math.floor((absDiff / 1000) % 60),
   };
+
+  return stats;
 };
 
-// Use "export default" to ensure Vercel/Vite knows this is the main component
-export default function App() {
+function App() {
   const fileInputRef = useRef(null);
 
   const [jobs, setJobs] = useState(() => {
-    // Check if window is defined (prevents errors during build time)
-    if (typeof window === 'undefined') return [];
     try {
       const saved = localStorage.getItem('myJobApplications');
       if (!saved) return [];
@@ -49,6 +36,7 @@ export default function App() {
     }
   });
 
+  // Defaulting to "Now" in the correct format for datetime-local input
   const getNowString = () => {
     const d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -61,7 +49,6 @@ export default function App() {
   });
 
   const [now, setNow] = useState(new Date());
-
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(timer);
@@ -77,12 +64,15 @@ export default function App() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // With datetime-local, we can parse directly as local time
     const selectedDate = new Date(formData.dateApplied);
+
     const newJob = {
       ...formData,
       id: crypto.randomUUID(),
       dateApplied: selectedDate.toISOString()
     };
+    
     setJobs([newJob, ...jobs]);
     setFormData({ ...formData, company: '', role: '', notes: '', dateApplied: getNowString() });
   };
@@ -183,6 +173,7 @@ export default function App() {
                   {t.isFuture ? "COUNTDOWN TO START:" : "ACTIVE TIME SINCE APPLIED:"}
                 </span>
                 <div style={{ fontSize: '1.3em', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                  {/* Logic: If future, only show days. If past, show the full stopwatch. */}
                   {t.isFuture 
                     ? `${t.days} Days Remaining` 
                     : `${t.days}d ${t.hours}h ${t.minutes}m ${t.seconds}s`
@@ -202,3 +193,17 @@ export default function App() {
     </div>
   );
 }
+
+const styles = {
+  form: { display: 'flex', flexDirection: 'column', gap: '12px', background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: '1px solid #eee' },
+  row: { display: 'flex', gap: '10px' },
+  input: { padding: '10px', borderRadius: '6px', border: '1px solid #ccc', flex: 1 },
+  submitBtn: { padding: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' },
+  card: { border: '1px solid #eee', padding: '15px', borderRadius: '10px', marginBottom: '15px', background: '#fff' },
+  timer: { marginTop: '12px', padding: '10px', borderRadius: '8px', textAlign: 'center' },
+  deleteBtn: { background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '0.8em', marginTop: '10px', padding: 0, textDecoration: 'underline' },
+  footer: { marginTop: '40px', borderTop: '1px solid #eee', paddingTop: '20px', display: 'flex', gap: '20px' },
+  backupBtn: { padding: '8px', cursor: 'pointer' }
+};
+
+export default App;
