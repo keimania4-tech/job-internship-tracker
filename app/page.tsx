@@ -64,7 +64,7 @@ function App() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     // With datetime-local, we can parse directly as local time
     const selectedDate = new Date(formData.dateApplied);
